@@ -1,0 +1,124 @@
+import React, { useState, useMemo } from 'react';
+import Plot from 'react-plotly.js';
+
+// İstatistiksel Proses Kontrolü (SPC) Sabitleri (n=2'den 10'a kadar) [1, 2]
+const SPC_CONSTANTS = {
+  2: { a2: 1.880, d2: 1.128, d3: 0, d4: 3.267 },
+  3: { a2: 1.023, d2: 1.693, d3: 0, d4: 2.574 },
+  4: { a2: 0.729, d2: 2.059, d3: 0, d4: 2.282 },
+  5: { a2: 0.577, d2: 2.326, d3: 0, d4: 2.114 },
+  6: { a2: 0.483, d2: 2.534, d3: 0, d4: 2.004 },
+  7: { a2: 0.419, d2: 2.704, d3: 0.076, d4: 1.924 },
+  8: { a2: 0.373, d2: 2.847, d3: 0.136, d4: 1.864 },
+  9: { a2: 0.337, d2: 2.970, d3: 0.184, d4: 1.816 },
+  10: { a2: 0.308, d2: 3.078, d3: 0.223, d4: 1.777 }
+};
+
+const QualityAnalysisApp = () => {
+  // Örnek ham veri seti (Her dizi bir alt grubu/günü temsil eder) [3]
+  const [measurements] = useState([12.1, 12.2, 12.0, 12.1, 12.3],
+    [12.2, 12.4, 12.1, 12.2, 12.2],
+    [12.0, 12.1, 12.3, 12.1, 12.2],
+    [12.3, 12.2, 12.4, 12.5, 12.1],
+    [12.1, 12.0, 12.1, 12.2, 12.2],
+    [12.4, 12.3, 12.2, 12.1, 12.3],
+    [12.1, 12.1, 12.0, 12.2, 12.1]);
+
+  // Teknik Spesifikasyon Sınırları (Müşteri Gereksinimleri)
+  const USL = 12.8; // Üst Spesifikasyon Sınırı
+  const LSL = 11.5; // Alt Spesifikasyon Sınırı
+  const n = measurements.length; // Alt grup büyüklüğü
+
+  const analysis = useMemo(() => {
+    const constants = SPC_CONSTANTS[n];
+    
+    // 1. Her alt grup için X-bar (Ortalama) ve R (Ranj) hesaplama
+    const xBars = measurements.map(group => group.reduce((a, b) => a + b, 0) / n);
+    const ranges = measurements.map(group => Math.max(...group) - Math.min(...group));
+
+    // 2. Genel Merkez Hatları (Grand Averages) [4]
+    const xDoubleBar = xBars.reduce((a, b) => a + b, 0) / xBars.length;
+    const rBar = ranges.reduce((a, b) => a + b, 0) / ranges.length;
+
+    // 3. Kontrol Sınırlarının Hesaplanması (UCL ve LCL) 
+    const uclX = xDoubleBar + (constants.a2 * rBar);
+    const lclX = xDoubleBar - (constants.a2 * rBar);
+    const uclR = constants.d4 * rBar;
+    const lclR = constants.d3 * rBar;
+
+    // 4. Süreç Yeterlilik Analizi (Cp ve Cpk)
+    // Standart sapma tahmini: sigma = R-bar / d2
+    const sigma = rBar / constants.d2;
+    const cp = (USL - LSL) / (6 * sigma);
+    const cpu = (USL - xDoubleBar) / (3 * sigma);
+    const cpl = (xDoubleBar - LSL) / (3 * sigma);
+    const cpk = Math.min(cpu, cpl);
+
+    return { xBars, ranges, xDoubleBar, rBar, uclX, lclX, uclR, lclR, cp, cpk };
+  },);
+
+  return (
+    <div style={{ padding: '30px', backgroundColor: '#f8f9fa', minHeight: '100vh' }}>
+      <h1 style={{ textAlign: 'center', color: '#2c3e50' }}>Endüstriyel Kalite Analiz Dashboard</h1>
+      
+      {/* Metrik Kartları */}
+      <div style={{ display: 'flex', justifyContent: 'center', gap: '20px', margin: '30px 0' }}>
+        <div style={cardStyle}>
+          <h4 style={{ margin: 0 }}>Potansiyel Yeterlilik (Cp)</h4>
+          <p style={{ fontSize: '28px', color: '#2980b9' }}>{analysis.cp.toFixed(3)}</p>
+        </div>
+        <div style={{...cardStyle, backgroundColor: analysis.cpk < 1.33? '#fff3f3' : '#f3fff3' }}>
+          <h4 style={{ margin: 0 }}>Süreç Performansı (Cpk)</h4>
+          <p style={{ fontSize: '28px', color: analysis.cpk < 1.33? '#c0392b' : '#27ae60' }}>
+            {analysis.cpk.toFixed(3)}
+          </p>
+          <small>{analysis.cpk < 1.33? 'Yetersiz Süreç' : 'Kabul Edilebilir'}</small>
+        </div>
+      </div>
+
+      {/* Grafikler */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '30px' }}>
+        {/* X-bar Grafiği  */}
+        <div style={chartContainerStyle}>
+          <Plot
+            data={, y: [analysis.uclX, analysis.uclX], mode: 'lines', name: 'UCL', line: { color: 'red', dash: 'dash' } },
+              { x:, y: [analysis.lclX, analysis.lclX], mode: 'lines', name: 'LCL', line: { color: 'red', dash: 'dash' } },
+              { x:, y:, mode: 'lines', name: 'Merkez', line: { color: 'green' } }
+            ]}
+            layout={{ title: 'X-bar Kontrol Diyagramı (Süreç Merkezi)', autosize: true }}
+            useResizeHandler style={{ width: '100%', height: '400px' }}
+          />
+        </div>
+
+        {/* R Grafiği */}
+        <div style={chartContainerStyle}>
+          <Plot
+            data={, y:, mode: 'lines', name: 'UCL R', line: { color: 'orange', dash: 'dash' } },
+              { x: [1, analysis.ranges.length], y:, mode: 'lines', name: 'LCL R', line: { color: 'orange', dash: 'dash' } }
+            ]}
+            layout={{ title: 'R-Grafiği (Süreç Değişkenliği)', autosize: true }}
+            useResizeHandler style={{ width: '100%', height: '400px' }}
+          />
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const cardStyle = {
+  backgroundColor: '#fff',
+  padding: '20px',
+  borderRadius: '12px',
+  boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+  textAlign: 'center',
+  minWidth: '250px'
+};
+
+const chartContainerStyle = {
+  backgroundColor: '#fff',
+  padding: '15px',
+  borderRadius: '12px',
+  boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
+};
+
+export default QualityAnalysisApp;
