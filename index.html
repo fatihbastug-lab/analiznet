@@ -3,163 +3,163 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ultra Kalite Analiz Pro - GitHub Edition</title>
-    
-    <!-- Gerekli Kütüphaneler (CDN üzerinden) -->
+    <title>Kalite Operasyon Dashboard Pro</title>
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
-
-    <style>
-        .chart-container { position: relative; height: 400px; width: 100%; }
-        body { background-color: #f8fafc; }
-    </style>
 </head>
-<body>
+<body class="bg-slate-50">
     <div id="root"></div>
 
     <script type="text/babel">
-        const { useState, useMemo, useEffect, useRef } = React;
+        const { useState, useMemo, useEffect } = React;
 
         function App() {
-            const [data, setData] = useState([]);
-            const [headers, setHeaders] = useState([]);
-            const [selectedCol, setSelectedCol] = useState("");
-            const chartRef = useRef(null);
-            const chartInstance = useRef(null);
+            const [sheets, setSheets] = useState({});
+            const [activeSheet, setActiveSheet] = useState("");
 
-            // 1. DOSYA OKUMA MOTORU (Excel & CSV)
-            const handleFileUpload = (e) => {
+            const handleFile = (e) => {
                 const file = e.target.files[0];
-                if (!file) return;
-
                 const reader = new FileReader();
                 reader.onload = (evt) => {
-                    const workbook = XLSX.read(evt.target.result, { type: 'binary' });
-                    const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-                    const jsonData = XLSX.utils.sheet_to_json(firstSheet);
-                    
-                    if (jsonData.length > 0) {
-                        setData(jsonData);
-                        const cols = Object.keys(jsonData[0]);
-                        setHeaders(cols);
-                        setSelectedCol(cols[0]);
-                    }
+                    const wb = XLSX.read(evt.target.result, { type: 'binary' });
+                    const allData = {};
+                    wb.SheetNames.forEach(name => {
+                        allData[name] = XLSX.utils.sheet_to_json(wb.Sheets[name]);
+                    });
+                    setSheets(allData);
+                    setActiveSheet(wb.SheetNames[0]);
                 };
                 reader.readAsBinaryString(file);
             };
 
-            // 2. İSTATİSTİKSEL HESAPLAMA (Sigma Motoru)
-            const stats = useMemo(() => {
-                if (!data.length || !selectedCol) return null;
-                
-                const values = data.map(d => parseFloat(d[selectedCol])).filter(v => !isNaN(v));
-                const n = values.length;
-                if (n === 0) return null;
-
-                const mean = values.reduce((a, b) => a + b, 0) / n;
-                const stdDev = Math.sqrt(values.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / n);
-                
-                return {
-                    values, n, mean, stdDev,
-                    ucl: mean + (3 * stdDev), // Üst Kontrol Limiti
-                    lcl: mean - (3 * stdDev)  // Alt Kontrol Limiti
-                };
-            }, [data, selectedCol]);
-
-            // 3. GRAFİK RENDERER
-            useEffect(() => {
-                if (stats && chartRef.current) {
-                    if (chartInstance.current) chartInstance.current.destroy();
-                    
-                    const ctx = chartRef.current.getContext('2d');
-                    chartInstance.current = new Chart(ctx, {
-                        type: 'line',
-                        data: {
-                            labels: stats.values.map((_, i) => i + 1),
-                            datasets: [
-                                { label: 'Ölçüm', data: stats.values, borderColor: '#3b82f6', tension: 0.2, pointRadius: 4 },
-                                { label: 'UCL (3σ)', data: Array(stats.n).fill(stats.ucl), borderColor: '#ef4444', borderDash: [5, 5], pointRadius: 0 },
-                                { label: 'Ortalama', data: Array(stats.n).fill(stats.mean), borderColor: '#10b981', pointRadius: 0 },
-                                { label: 'LCL (3σ)', data: Array(stats.n).fill(stats.lcl), borderColor: '#ef4444', borderDash: [5, 5], pointRadius: 0 }
-                            ]
-                        },
-                        options: {
-                            responsive: true,
-                            maintainAspectRatio: false,
-                            plugins: { legend: { position: 'top' } }
-                        }
-                    });
-                }
-            }, [stats]);
-
             return (
-                <div className="container mx-auto px-4 py-8 max-w-5xl">
-                    <header className="bg-white rounded-2xl shadow-sm p-6 mb-8 border border-slate-200">
-                        <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-                            <div>
-                                <h1 className="text-3xl font-extrabold text-slate-800 tracking-tight">Ultra Analiz Pro</h1>
-                                <p className="text-slate-500 font-medium">Kalite Kontrol & İstatistiksel Dashboard</p>
-                            </div>
-                            <input 
-                                type="file" 
-                                onChange={handleFileUpload} 
-                                accept=".xlsx, .xls, .csv"
-                                className="text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer"
-                            />
+                <div className="min-h-screen p-4 md:p-8">
+                    {/* Üst Bar */}
+                    <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center bg-white p-6 rounded-2xl shadow-sm border border-slate-200 mb-8 gap-4">
+                        <div>
+                            <h1 className="text-2xl font-black text-indigo-900 tracking-tighter">OPERASYONEL ANALİZ 2026</h1>
+                            <p className="text-slate-500 text-sm font-medium">Kalite, Trend ve Performans Takibi</p>
                         </div>
-                    </header>
+                        <input type="file" onChange={handleFile} className="text-sm file:bg-indigo-600 file:text-white file:border-0 file:px-4 file:py-2 file:rounded-lg file:font-bold cursor-pointer hover:file:bg-indigo-700 transition-all" />
+                    </div>
 
-                    {data.length > 0 ? (
-                        <div className="space-y-6">
-                            {/* İstatistik Kartları */}
-                            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                                <Card label="Veri Adedi" value={stats?.n} color="blue" />
-                                <Card label="Ortalama" value={stats?.mean.toFixed(4)} color="green" />
-                                <Card label="UCL (+3σ)" value={stats?.ucl.toFixed(4)} color="red" />
-                                <Card label="LCL (-3σ)" value={stats?.lcl.toFixed(4)} color="red" />
+                    {activeSheet ? (
+                        <div className="max-w-7xl mx-auto">
+                            {/* Sekme Navigasyonu */}
+                            <div className="flex flex-wrap gap-2 mb-6">
+                                {Object.keys(sheets).map(name => (
+                                    <button 
+                                        key={name}
+                                        onClick={() => setActiveSheet(name)}
+                                        className={`px-4 py-2 rounded-full text-xs font-bold uppercase transition-all ${activeSheet === name ? 'bg-indigo-600 text-white' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100'}`}
+                                    >
+                                        {name}
+                                    </button>
+                                ))}
                             </div>
 
-                            {/* Grafik Alanı */}
-                            <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-                                <div className="flex justify-between items-center mb-6">
-                                    <h2 className="text-lg font-bold text-slate-700 italic">X-Bar Kontrol Grafiği</h2>
-                                    <select 
-                                        className="bg-slate-50 border border-slate-300 text-sm rounded-lg p-2 outline-none focus:ring-2 focus:ring-blue-500"
-                                        value={selectedCol}
-                                        onChange={(e) => setSelectedCol(e.target.value)}
-                                    >
-                                        {headers.map(h => <option key={h} value={h}>{h}</option>)}
-                                    </select>
+                            {/* Dashboard İçeriği */}
+                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                                {/* Veri Özeti Kartları */}
+                                <div className="lg:col-span-3 grid grid-cols-1 md:grid-cols-4 gap-4">
+                                    <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                                        <p className="text-xs font-bold text-slate-400 uppercase">Toplam Kayıt</p>
+                                        <p className="text-3xl font-black text-slate-800">{sheets[activeSheet].length}</p>
+                                    </div>
+                                    {/* Dinamik Olarak İlk İki Sütun Ortalamasını Gösterelim */}
+                                    <MetricCards data={sheets[activeSheet]} />
                                 </div>
-                                <div className="chart-container">
-                                    <canvas ref={chartRef}></canvas>
+
+                                {/* Grafik Alanı */}
+                                <div className="lg:col-span-2 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm min-h-[400px]">
+                                    <h3 className="font-bold text-slate-700 mb-4">{activeSheet} - Dağılım Grafiği</h3>
+                                    <ChartContainer data={sheets[activeSheet]} label={activeSheet} />
+                                </div>
+
+                                {/* Veri Tablosu Önizleme */}
+                                <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm overflow-auto max-h-[400px]">
+                                    <h3 className="font-bold text-slate-700 mb-4 text-sm uppercase">Hızlı Veri Gözat</h3>
+                                    <table className="w-full text-left text-xs">
+                                        <thead>
+                                            <tr className="border-b border-slate-100 italic">
+                                                {Object.keys(sheets[activeSheet][0] || {}).slice(0, 3).map(h => <th key={h} className="py-2">{h}</th>)}
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {sheets[activeSheet].slice(0, 10).map((row, i) => (
+                                                <tr key={i} className="border-b border-slate-50 hover:bg-slate-50">
+                                                    {Object.values(row).slice(0, 3).map((v, j) => <td key={j} className="py-2">{v}</td>)}
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
                                 </div>
                             </div>
                         </div>
                     ) : (
-                        <div className="text-center py-20 bg-white rounded-3xl border-2 border-dashed border-slate-300">
-                            <p className="text-slate-400 text-lg">Başlamak için Excel dosyanızı yükleyin.</p>
+                        <div className="max-w-md mx-auto mt-20 text-center bg-white p-12 rounded-[3rem] shadow-xl border border-slate-100">
+                            <div className="text-6xl mb-4">📊</div>
+                            <h2 className="text-xl font-bold text-slate-800">Veri Bekleniyor</h2>
+                            <p className="text-slate-500 mt-2">Kalite Analiz Dashboard'u oluşturmak için operasyonel Excel dosyanızı yükleyin.</p>
                         </div>
                     )}
                 </div>
             );
         }
 
-        function Card({ label, value, color }) {
-            const styles = {
-                blue: "bg-blue-50 border-blue-200 text-blue-700",
-                green: "bg-green-50 border-green-200 text-green-700",
-                red: "bg-red-50 border-red-200 text-red-700"
-            };
+        // Dinamik Grafik Bileşeni
+        function ChartContainer({ data, label }) {
+            const canvasRef = useRef(null);
+            const chartInstance = useRef(null);
+
+            useEffect(() => {
+                if (chartInstance.current) chartInstance.current.destroy();
+                const ctx = canvasRef.current.getContext('2d');
+                
+                const keys = Object.keys(data[0] || {});
+                const labels = data.slice(0, 15).map((d, i) => d[keys[0]] || i);
+                const values = data.slice(0, 15).map(d => parseFloat(d[keys[1]]) || 0);
+
+                chartInstance.current = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels,
+                        datasets: [{
+                            label: 'Performans/Hata Değeri',
+                            data: values,
+                            backgroundColor: '#4f46e5',
+                            borderRadius: 8
+                        }]
+                    },
+                    options: { responsive: true, maintainAspectRatio: false }
+                });
+            }, [data]);
+
+            return <div className="h-full"><canvas ref={canvasRef}></canvas></div>;
+        }
+
+        function MetricCards({ data }) {
+            const keys = Object.keys(data[0] || {});
+            const avg = (data.reduce((acc, curr) => acc + (parseFloat(curr[keys[1]]) || 0), 0) / data.length).toFixed(2);
             return (
-                <div className={`p-5 rounded-2xl border ${styles[color]}`}>
-                    <p className="text-xs font-bold uppercase tracking-widest opacity-70">{label}</p>
-                    <p className="text-2xl font-black mt-1">{value}</p>
-                </div>
+                <React.Fragment>
+                    <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                        <p className="text-xs font-bold text-slate-400 uppercase">Ortalama Skor</p>
+                        <p className="text-3xl font-black text-green-600">%{isNaN(avg) ? 0 : avg}</p>
+                    </div>
+                    <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                        <p className="text-xs font-bold text-slate-400 uppercase">Aktif Parametre</p>
+                        <p className="text-3xl font-black text-indigo-600">{keys.length}</p>
+                    </div>
+                    <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                        <p className="text-xs font-bold text-slate-400 uppercase">Durum</p>
+                        <p className="text-3xl font-black text-amber-500">Stabil</p>
+                    </div>
+                </React.Fragment>
             );
         }
 
